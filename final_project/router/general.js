@@ -5,6 +5,7 @@ let users = require("./auth_users.js").users;
 const public_users = express.Router();
 
 
+
 public_users.post("/register", (req,res) => {
     const username = req.body.username;   
     const password = req.body.password;   
@@ -86,5 +87,77 @@ public_users.get('/review/:isbn',function (req, res) {
       return res.status(404).json({ message: "No reviews found for this book" });
     }
 });
+
+public_users.get('/async/books', function (req, res) {
+    const getBooksPromise = new Promise((resolve, reject) => {
+      if (books) {
+        resolve(books);
+      } else {
+        reject("Books not found");
+      }
+    });
+  
+    getBooksPromise
+      .then((data) => {
+        return res.status(200).json(JSON.stringify(data, null, 4));
+      })
+      .catch((err) => {
+        return res.status(404).json({ message: err });
+      });
+  });
+  
+  public_users.get('/async/isbn/:isbn', async function (req, res) {
+    try {
+      const isbn = req.params.isbn;
+      const result = await new Promise((resolve, reject) => {
+        const book = books[isbn];
+        if (book) resolve(book);
+        else reject("Book not found");
+      });
+      return res.status(200).json(JSON.stringify(result, null, 4));
+    } catch (err) {
+      return res.status(404).json({ message: err });
+    }
+  });
+  
+  public_users.get('/async/author/:author', async function (req, res) {
+    try {
+      const author = req.params.author;
+      const bookKeys = Object.keys(books);
+      const result = await new Promise((resolve) => {
+        const filtered = bookKeys
+          .filter((key) => books[key].author === author)
+          .map((key) => books[key]);
+        resolve(filtered);
+      });
+  
+      if (result.length > 0) {
+        return res.status(200).json(JSON.stringify(result, null, 4));
+      } else {
+        return res.status(404).json({ message: "No books found for this author" });
+      }
+    } catch (err) {
+      return res.status(500).json({ message: err });
+    }
+  });
+  
+  public_users.get('/async/title/:title', function (req, res) {
+    const title = req.params.title;
+    const getByTitle = new Promise((resolve, reject) => {
+      const filtered = Object.keys(books)
+        .filter((key) => books[key].title === title)
+        .map((key) => books[key]);
+      if (filtered.length > 0) resolve(filtered);
+      else reject("No books found with this title");
+    });
+  
+    getByTitle
+      .then((data) => {
+        return res.status(200).json(JSON.stringify(data, null, 4));
+      })
+      .catch((err) => {
+        return res.status(404).json({ message: err });
+      });
+  });
 
 module.exports.general = public_users;
